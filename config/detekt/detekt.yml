@@ -1,0 +1,23 @@
+# Overrides on top of detekt's bundled default ruleset (buildUponDefaultConfig=true
+# in the root build.gradle.kts). Kept intentionally small — see constitution's
+# Development Workflow & Quality Gates section for the underlying rules this project
+# actually cares about enforcing (no unjustified !!, no silent error swallowing).
+
+style:
+  UnnecessaryAbstractClass:
+    active: false
+
+complexity:
+  LongParameterList:
+    functionThreshold: 7
+    constructorThreshold: 8
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: true
+  SwallowedException:
+    active: true
+
+potential-bugs:
+  UnsafeCallOnNullableType:
+    active: true
