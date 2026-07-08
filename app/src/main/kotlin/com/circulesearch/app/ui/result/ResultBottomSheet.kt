@@ -3,10 +3,10 @@ package com.circulesearch.app.ui.result
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -16,13 +16,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.circulesearch.app.domain.model.ChatMessage
 import com.circulesearch.app.domain.model.SearchError
 
 /**
- * Explicit loading (skeleton) / streaming / success / error states (constitution X)
- * — the error state always includes a visible retry action (FR-024). Dismissing
- * cancels any in-flight request and drops the session via [ResultViewModel.dismiss].
+ * Explicit loading (skeleton) / streaming / conversation / error states (constitution
+ * X) — the error state always includes a visible retry action (FR-024). Once an
+ * initial answer exists, the panel becomes a running chat ([ChatMessageList] +
+ * [ChatInputBar], FR-030). Dismissing cancels any in-flight request and drops the
+ * whole session via [ResultViewModel.dismiss] (FR-007/FR-029).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,10 +52,20 @@ fun ResultBottomSheet(
                 is ResultUiState.Loading -> LoadingSkeleton()
                 is ResultUiState.Streaming -> {
                     Text(state.partialText)
-                    state.answeredByProfileName?.let { AnsweredByLabel(it) }
+                    state.answeredByProfileName?.let { AnsweredByCaption(it) }
                 }
                 is ResultUiState.Conversation -> {
-                    state.session.messages.forEach { message -> MessageRow(message, viewModel::profileName) }
+                    ChatMessageList(
+                        session = state.session,
+                        pendingFollowUp = state.pendingFollowUp,
+                        resolveProfileName = viewModel::profileName,
+                        onRetryFollowUp = viewModel::retry,
+                        modifier = Modifier.heightIn(max = 360.dp),
+                    )
+                    ChatInputBar(
+                        enabled = state.pendingFollowUp !is PendingFollowUp.Loading && state.pendingFollowUp !is PendingFollowUp.Streaming,
+                        onSend = viewModel::sendFollowUp,
+                    )
                 }
                 is ResultUiState.Error -> ErrorState(error = state.error, onRetry = viewModel::retry)
             }
@@ -68,25 +79,11 @@ private fun LoadingSkeleton() {
 }
 
 @Composable
-private fun MessageRow(
-    message: ChatMessage,
-    resolveProfileName: (String?) -> String?,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(message.textContent)
-        if (message.role == ChatMessage.Role.Assistant) {
-            resolveProfileName(message.producedByProfileId)?.let { AnsweredByLabel(it) }
-        }
-    }
-}
-
-/** FR-015: discreet, not intrusive — small caption text, not a banner/dialog. */
-@Composable
-private fun AnsweredByLabel(profileName: String) {
+internal fun AnsweredByCaption(profileName: String) {
     Text(
         text = "Answered by $profileName",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -96,14 +93,14 @@ private fun ErrorState(
     onRetry: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(error.toUserMessage())
+        Text(error.toResultUserMessage())
         OutlinedButton(onClick = onRetry) {
             Text("Retry")
         }
     }
 }
 
-private fun SearchError.toUserMessage(): String =
+internal fun SearchError.toResultUserMessage(): String =
     when (this) {
         is SearchError.Network -> "Network error. Check your connection and try again."
         is SearchError.Timeout -> "The request took too long. Try again."
