@@ -24,11 +24,12 @@
             android:exported="false"
             android:theme="@style/Theme.CircleSearch.Transparent" />
 
-        <!--
-          Still to add: TriggerEntryActivity/MainActivity/
-          ScreenCaptureForegroundService/TriggerAccessibilityService, by T022, T064,
-          T028, T062 respectively.
-        -->
+        <service
+            android:name=".data.capture.ScreenCaptureForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <!-- Still to add: TriggerEntryActivity/MainActivity/TriggerAccessibilityService, by T022, T064, T062. -->
 
     </application>
 
