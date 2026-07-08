@@ -113,5 +113,6 @@ internal fun SearchError.toResultUserMessage(): String =
         }
         is SearchError.CaptureBlocked -> "This screen couldn't be captured."
         is SearchError.NoActiveProfileConfigured -> "No AI endpoint is configured yet. Open Settings to add one."
+        is SearchError.PermissionsMissing -> "A required permission is missing or was revoked. Open Circle Search to fix it."
         is SearchError.Cancelled -> "Search cancelled."
     }

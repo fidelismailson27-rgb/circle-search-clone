@@ -17,6 +17,9 @@ sealed class SearchError {
 
     data object NoActiveProfileConfigured : SearchError()
 
+    /** FR-018: a previously granted permission (overlay/accessibility) was revoked since last checked. */
+    data class PermissionsMissing(val missing: List<PermissionStatus.Type>) : SearchError()
+
     data object Cancelled : SearchError()
 }
 

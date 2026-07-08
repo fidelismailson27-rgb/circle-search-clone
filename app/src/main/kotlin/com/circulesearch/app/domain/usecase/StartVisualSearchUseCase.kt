@@ -28,9 +28,18 @@ class StartVisualSearchUseCase
         private val endpointProfileRepository: EndpointProfileRepository,
         private val screenCaptureRepository: ScreenCaptureRepository,
         private val visualSearchRepository: VisualSearchRepository,
+        private val checkRequiredPermissionsUseCase: CheckRequiredPermissionsUseCase,
     ) {
         operator fun invoke(selection: OverlaySelectionRegion): Flow<VisualSearchOutcome> =
             flow {
+                // FR-018: re-check live permission state at time of use, not just at
+                // onboarding — a previously granted permission may have been revoked.
+                val missingPermissions = checkRequiredPermissionsUseCase()
+                if (missingPermissions.isNotEmpty()) {
+                    emit(VisualSearchOutcome.Failed(SearchError.PermissionsMissing(missingPermissions.map { it.permissionType })))
+                    return@flow
+                }
+
                 val activeProfile = endpointProfileRepository.getActiveProfile()
                 if (activeProfile == null) {
                     // No profile configured/active yet — FR-017/FR-022, redirect-to-Settings
