@@ -59,42 +59,94 @@ and confirming an answer is displayed without the originating app losing its sta
 
 ---
 
-### User Story 2 - Bring Your Own AI Endpoint (Priority: P2)
+### User Story 2 - Bring Your Own AI Endpoint, With Automatic Fallback (Priority: P2)
 
 A user wants to control exactly which AI provider sees the content they search for, and
-what it costs them. They open Settings, enter the connection details for an AI
-endpoint they already have access to (a commercial provider, a self-hosted server, or a
-model running on their local network), verify the connection works, and from then on
-every search uses that endpoint.
+what it costs them — and wants resilience if their primary choice is temporarily
+unavailable. They open Settings and create one or more named connection profiles (for
+example, "OpenAI", "Home Ollama", "OpenRouter Backup"), each with its own connection
+address, credential, and model identifier. They mark one profile as active and,
+optionally, arrange the others into a fallback order. From then on, every search uses
+the active profile — and if it fails, the app tries the next profile in the fallback
+order automatically.
 
 **Why this priority**: The core search flow (P1) has no destination for its requests
-without a configured endpoint. This story is what makes P1 usable, and it is the
-product's core trust model (no proprietary backend/data collection).
+without a configured, working endpoint. This story is what makes P1 usable and
+resilient, and it is the product's core trust model (no proprietary backend/data
+collection, full user control over provider choice).
 
-**Independent Test**: Can be fully tested by entering connection details in Settings,
-using the "test connection" action, and confirming clear success or failure feedback —
-independent of ever performing an actual visual search.
+**Independent Test**: Can be fully tested by creating multiple named profiles in
+Settings, marking one active and defining a fallback order, using "test connection" on
+each, and confirming clear success or failure feedback per profile — independent of
+ever performing an actual visual search.
 
 **Acceptance Scenarios**:
 
-1. **Given** the user is on the Settings screen, **When** they enter a connection
-   address, credential, and model identifier, **Then** the values are saved for future
-   searches.
-2. **Given** connection details have been entered, **When** the user requests a
-   connection test, **Then** the app reports clearly whether the endpoint is reachable
-   and correctly configured, without silently failing or hanging indefinitely.
-3. **Given** invalid or incomplete connection details, **When** the user tries to save
-   or test them, **Then** the app explains what is missing or wrong.
-4. **Given** the user has previously configured an endpoint, **When** they reopen
-   Settings, **Then** their saved connection address and model identifier are shown
-   (the credential itself is not displayed in plain text).
-5. **Given** the user adjusts the compression quality or the text-fallback toggle,
+1. **Given** the user is on the Settings screen, **When** they create a new named
+   profile with a connection address, credential, and model identifier, **Then** the
+   profile is saved and appears in their list of profiles.
+2. **Given** the user has multiple saved profiles, **When** they mark a different one
+   as active, **Then** all subsequent searches use that profile until changed again.
+3. **Given** the user has more than one profile, **When** they arrange a fallback
+   order, **Then** that order is saved and used if the active profile's request fails.
+4. **Given** a profile's connection details, **When** the user requests a connection
+   test for that profile, **Then** the app reports clearly whether it is reachable and
+   correctly configured, without silently failing or hanging indefinitely.
+5. **Given** invalid or incomplete connection details for a profile, **When** the user
+   tries to save or test it, **Then** the app explains what is missing or wrong.
+6. **Given** the user has previously configured profiles, **When** they reopen
+   Settings, **Then** each profile's name, connection address, and model identifier are
+   shown (the credential itself is never displayed in plain text).
+7. **Given** the active profile's request fails during a real search, **When** a
+   fallback profile is defined, **Then** the app automatically retries with the next
+   profile in the fallback order and, if it succeeds, discreetly indicates which
+   profile actually produced the result.
+8. **Given** the user adjusts the compression quality or the text-fallback toggle,
    **When** they leave the Settings screen, **Then** the new preference is applied to
    all subsequent searches.
 
 ---
 
-### User Story 3 - Understand and Grant the Right Permissions (Priority: P3)
+### User Story 3 - Continue the Conversation on a Search (Priority: P2)
+
+After receiving an initial answer about something they circled, a user often has a
+natural follow-up question — "what brand is that", "is this safe to eat", "translate
+that line". Instead of starting an entirely new search, the user can keep typing in the
+same result panel and get answers that understand what was originally circled and what
+has already been discussed in that panel, for as long as the panel stays open.
+
+**Why this priority**: A single, isolated answer is frequently not enough to satisfy
+the user's actual need; the ability to refine or dig deeper in place is close to the
+core value proposition itself, on par with configuring a working endpoint — without it,
+users are forced to restart the whole trigger-and-select flow for every small
+follow-up.
+
+**Independent Test**: Can be fully tested by completing one visual search, then sending
+one or more follow-up text messages in the same result panel, and confirming each
+response accounts for the original selection and the prior messages — then closing the
+panel and reopening the assistant to confirm no memory of that conversation remains.
+
+**Acceptance Scenarios**:
+
+1. **Given** an initial search result is displayed, **When** the user types and sends a
+   follow-up message, **Then** the app shows the new message and a corresponding answer
+   in the same panel, without re-triggering the capture/selection flow.
+2. **Given** a follow-up has already been answered, **When** the user sends another
+   follow-up, **Then** the answer takes into account both the original selection and
+   every prior message in that session.
+3. **Given** an ongoing conversation in the result panel, **When** the user views the
+   panel, **Then** they see a running list of the session's messages (the initial
+   result plus every follow-up exchanged) with a clear way to enter the next message.
+4. **Given** an open result panel with an ongoing conversation, **When** the user
+   dismisses the panel, **Then** the entire conversation is discarded immediately and
+   nothing about it is written to persistent storage.
+5. **Given** a conversation was previously discarded by closing the panel, **When** the
+   user starts a brand-new visual search, **Then** the new result panel opens with no
+   memory of any earlier conversation.
+
+---
+
+### User Story 4 - Understand and Grant the Right Permissions (Priority: P3)
 
 A first-time user installs the app and needs to understand why it requires
 screen-overlay, accessibility, and screen-capture permissions before any of the core
@@ -125,7 +177,7 @@ been granted or denied.
 
 ---
 
-### User Story 4 - Reliable Results Despite Protected Content (Priority: P4)
+### User Story 5 - Reliable Results Despite Protected Content (Priority: P4)
 
 A user circles something on a screen that the operating system prevents from being
 captured as an image (for example, a banking app or a video streaming app marked as
@@ -157,9 +209,9 @@ broken response.
 
 ### Edge Cases
 
-- What happens when the external trigger fires but no AI endpoint has been configured
-  yet? The app must redirect the user to Settings with an explanation rather than
-  attempting a request.
+- What happens when the external trigger fires but no AI endpoint profile has been
+  configured and set active yet? The app must redirect the user to Settings with an
+  explanation rather than attempting a request.
 - What happens when the user draws a selection with a zero or near-zero area (a tap
   instead of a drag)? The app must require a minimum selection size and prompt the
   user to try again rather than sending an empty or near-empty image.
@@ -169,9 +221,20 @@ broken response.
   than allowing overlapping, conflicting results.
 - What happens when network connectivity is lost mid-search? The user must see a clear
   error with the option to retry, not an indefinite loading state.
-- What happens when the configured AI endpoint returns a response that isn't a valid
-  answer (malformed data, unexpected format)? The user must see a clear error rather
-  than a blank or broken panel.
+- What happens when the active profile returns a response that isn't a valid answer
+  (malformed data, unexpected format)? This is treated the same as any other request
+  failure for fallback purposes — the app attempts the next profile in the fallback
+  order, if any, before showing the user an error.
+- What happens when the active profile and every profile in its fallback order fail
+  (any combination of network error, timeout, HTTP error response, or malformed
+  response)? The app must show one clear, aggregated error with a retry option rather
+  than retrying indefinitely or failing silently.
+- What happens when the user has not defined a fallback order, or has only one profile
+  configured? A failure of the active profile must go straight to a clear error, with
+  no fallback attempted.
+- What happens if the user dismisses the result panel while a follow-up message is
+  still in flight? The in-flight request must be canceled along with the rest of the
+  conversation context — no orphaned response should appear after the panel is gone.
 - What happens on foldable devices or in split-screen/multi-window mode where the
   visible app occupies only part of the physical screen? The selection overlay and
   resulting search must operate correctly against the visible app's region.
@@ -198,66 +261,104 @@ broken response.
 - **FR-004**: The system MUST allow the user to cancel the selection overlay at any
   point without submitting a search, returning them to the original app unchanged.
 - **FR-005**: Once a selection is confirmed, the system MUST send only the selected
-  region's content to the AI endpoint configured by the user for analysis.
+  region's content to the active AI endpoint profile for analysis.
 - **FR-006**: The system MUST display the outcome of a search (loading, success, or
   error) in a result panel presented above the app the user was already using, without
-  navigating the user away from that app.
+  navigating the user away from that app. The same panel MUST serve as the surface for
+  any follow-up conversation once an initial result is available.
 - **FR-007**: When the user dismisses the result panel, the system MUST return the user
   to the exact state of the app they were previously using (same screen, scroll
   position, and input state).
-- **FR-008**: The system MUST allow the user to configure, in a dedicated settings
-  area, the connection address, access credential, and model identifier of the AI
-  endpoint used for searches; no default or built-in AI backend is provided by the
-  system itself.
-- **FR-009**: The system MUST allow the user to test their configured AI endpoint
-  connection on demand and receive an explicit success or failure outcome.
-- **FR-010**: The system MUST persist the user's AI endpoint configuration and search
-  preferences (including a text-only fallback toggle and a compression/quality
-  preference) across app restarts.
-- **FR-011**: The system MUST never display the user's stored access credential in
-  plain text after it has been saved.
-- **FR-012**: The system MUST guide first-time users through explaining and requesting
+- **FR-008**: The system MUST allow the user to create, name, edit, and delete multiple
+  AI Endpoint Profiles, each capturing a connection address, access credential, and
+  model identifier; no default or built-in AI backend is provided by the system itself.
+- **FR-009**: The system MUST allow the user to designate exactly one AI Endpoint
+  Profile as active at any time, and MUST use only the active profile to start a new
+  search unless the automatic fallback behavior (FR-014) applies.
+- **FR-010**: The system MUST allow the user to test the connection of any individual
+  profile on demand and receive an explicit success or failure outcome for that
+  profile.
+- **FR-011**: The system MUST persist the user's full set of AI Endpoint Profiles, which
+  one is active, the user-defined fallback order, and search preferences (including a
+  text-only fallback toggle and a compression/quality preference) across app restarts.
+- **FR-012**: The system MUST never display any stored access credential in plain text
+  after it has been saved, for any profile.
+- **FR-013**: The system MUST allow the user to define an ordered fallback sequence
+  among their saved profiles, to be used if the active profile's request fails.
+- **FR-014**: When a request to the active profile fails — due to a network error,
+  timeout, HTTP error response, or a malformed/unparseable response — the system MUST
+  automatically retry the same search using the next profile in the user-defined
+  fallback order, if one exists, before surfacing an error to the user.
+- **FR-015**: When a profile other than the originally active one produces the
+  successful result for a search, the system MUST discreetly indicate to the user which
+  profile actually answered.
+- **FR-016**: If the active profile and every profile in the fallback order fail, the
+  system MUST present one clear, aggregated error to the user rather than retrying
+  indefinitely or failing silently.
+- **FR-017**: The system MUST guide first-time users through explaining and requesting
   each permission required for the core flow (screen overlay, accessibility service,
   screen capture) before the core flow is used for the first time.
-- **FR-013**: The system MUST detect, at time of use, whether a required permission is
+- **FR-018**: The system MUST detect, at time of use, whether a required permission is
   missing or has been revoked, and MUST direct the user to resolve it with a clear
   explanation, rather than failing without explanation.
-- **FR-014**: When the current screen cannot be captured as an image (e.g., due to
+- **FR-019**: When the current screen cannot be captured as an image (e.g., due to
   system-level content protection), the system MUST detect this condition and, if the
   user has enabled the text-fallback preference, MUST attempt to derive a result from
   on-screen text instead, informing the user this fallback was used.
-- **FR-015**: When image capture is blocked and text fallback is disabled or
+- **FR-020**: When image capture is blocked and text fallback is disabled or
   unavailable, the system MUST inform the user the search could not be completed for
   that screen, rather than showing a blank or broken result.
-- **FR-016**: The system MUST require a minimum selection area before allowing a search
+- **FR-021**: The system MUST require a minimum selection area before allowing a search
   to be submitted, and MUST prompt the user to redraw the selection if it is too small.
-- **FR-017**: If the trigger is invoked before an AI endpoint has been configured, the
-  system MUST inform the user and direct them to complete configuration instead of
-  attempting a search.
-- **FR-018**: The system MUST handle a new trigger invocation that occurs while a prior
+- **FR-022**: If the trigger is invoked before any AI Endpoint Profile has been created
+  and set active, the system MUST inform the user and direct them to complete
+  configuration instead of attempting a search.
+- **FR-023**: The system MUST handle a new trigger invocation that occurs while a prior
   search is still in progress in a well-defined way (e.g. superseding the prior search)
   rather than producing overlapping or conflicting results.
-- **FR-019**: The system MUST present a clear, user-readable error with a retry option
-  whenever a search fails (network failure, endpoint error, malformed response, or
-  timeout), rather than leaving the user in an indefinite loading state or a silent
+- **FR-024**: The system MUST present a clear, user-readable error with a retry option
+  whenever a search ultimately fails (after any fallback attempts are exhausted) or
+  times out, rather than leaving the user in an indefinite loading state or a silent
   failure.
-- **FR-020**: The system MUST correctly determine the boundaries of the foreground
+- **FR-025**: The system MUST correctly determine the boundaries of the foreground
   app's visible content when capturing and mapping the user's selection, including when
   the foreground app occupies only part of the screen (multi-window/split-screen) or
   the device is a foldable in an intermediate posture.
+- **FR-026**: After an initial search result is shown, the system MUST allow the user
+  to send follow-up messages within the same result panel, without leaving the app they
+  were using or re-triggering a new capture/selection flow.
+- **FR-027**: Each follow-up message MUST be answered using the context of the original
+  visual selection and every prior message exchanged earlier in that same session.
+- **FR-028**: The system MUST hold the conversation context (the original selection and
+  all exchanged messages) only in memory for the lifetime of the result panel; this
+  context MUST NOT be written to persistent storage at any point.
+- **FR-029**: When the result panel is dismissed, the system MUST discard the entire
+  conversation context and message history immediately; reopening the assistant MUST
+  start a new, empty session with no memory of the previous one.
+- **FR-030**: The result panel MUST present the conversation as a running list of
+  messages (the initial result plus any subsequent follow-up turns) together with an
+  input affordance for the user to continue the conversation.
 
 ### Key Entities
 
-- **AI Endpoint Configuration**: Represents the user's BYOK connection settings —
-  connection address, access credential, model identifier, and connection status.
-  Exactly one active configuration exists per user at a time.
+- **AI Endpoint Profile**: Represents a single named BYOK connection — name, connection
+  address, access credential, model identifier, and connection status. The user
+  maintains a collection of these profiles; exactly one is marked active at a time, and
+  the remaining profiles may be arranged into an ordered fallback sequence used
+  automatically when the active profile's request fails.
 - **Search Preferences**: User-adjustable settings governing search behavior — text
   fallback enabled/disabled, and image compression/quality level.
 - **Visual Search Request**: Represents a single invocation of the core flow — the
   selected screen region, the point in time it was captured, and its resulting status
   (pending, succeeded, failed).
-- **Search Result**: The answer content returned for a Visual Search Request, along
-  with whether it was derived from image analysis or from the on-screen text fallback.
+- **Conversation Session**: Represents the ephemeral, in-memory exchange tied to a
+  single Visual Search Request — the initial Search Result plus any follow-up messages
+  and their answers, in order. Exists only for the lifetime of the result panel;
+  discarded in full, with nothing persisted, the moment the panel closes.
+- **Search Result**: The answer content for a single turn within a Conversation Session
+  (the initial answer or a follow-up answer), along with whether it was derived from
+  image analysis or the on-screen text fallback, and which AI Endpoint Profile produced
+  it.
 - **Permission Status**: Tracks, per required system permission, whether it has been
   explained to the user and whether it is currently granted.
 
@@ -285,6 +386,12 @@ broken response.
   the app between one trigger invocation and the next.
 - **SC-007**: A user can determine, within 2 actions from Settings, whether their
   configured AI endpoint is currently reachable and correctly set up.
+- **SC-008**: When the active AI endpoint profile is unreachable or fails, at least 95%
+  of searches with a configured fallback order still complete successfully via an
+  automatically attempted fallback profile.
+- **SC-009**: A user can send a follow-up message and receive a contextually relevant
+  answer in the same result panel in 100% of attempts made before the panel is closed,
+  with zero conversation data recoverable once the panel has been dismissed.
 
 ## Assumptions
 
@@ -292,11 +399,19 @@ broken response.
   work — the trigger is reachable while the app is backgrounded or not recently opened,
   as long as its background components (service/trigger receiver) are alive per
   standard Android lifecycle rules.
-- No search history or persistence of past results is required for this version of the
-  product; each Visual Search Request and its Search Result are ephemeral and not
-  stored beyond what's needed to display the current result panel.
-- Only one AI Endpoint Configuration is supported per install (no multi-profile /
-  multi-provider switching in this version).
+- No search history or persistence of past conversations is required for this version
+  of the product; each Visual Search Request and its Conversation Session (initial
+  result plus any follow-ups) are ephemeral and exist only in memory for as long as the
+  result panel is open.
+- Multiple named AI Endpoint Profiles are supported; exactly one is active at a time,
+  selectable by the user, with the remaining profiles available as an optional
+  user-defined fallback order.
+- Because the configured AI endpoint is treated as stateless between requests, each
+  follow-up turn in a Conversation Session resends the necessary prior context
+  (previous messages and, depending on the endpoint's requirements, the original image
+  selection) to the endpoint; this increases token usage per turn as a conversation
+  grows, which is an accepted tradeoff for keeping all context client-side and
+  unpersisted.
 - The selection overlay operates on a single captured frame per invocation; the user
   does not need to capture and combine multiple frames in one search.
 - "Reasonable wait time" for success criteria SC-003 is interpreted as being bounded by

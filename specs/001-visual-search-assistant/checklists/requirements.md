@@ -34,5 +34,10 @@
 - All items pass on first validation pass. No [NEEDS CLARIFICATION] markers were
   required — every ambiguity encountered had a reasonable, documented default
   recorded in the Assumptions section of spec.md.
+- **2026-07-08 revision**: added multiple named AI Endpoint Profiles with
+  user-defined fallback order (User Story 2, FR-008 to FR-016), and an ephemeral
+  per-search follow-up chat held in memory only (new User Story 3, FR-026 to FR-030,
+  Conversation Session entity). Re-validated against all checklist items above —
+  still all pass, still zero [NEEDS CLARIFICATION] markers.
 - Ready for `/speckit-plan` (technology stack and architecture are fixed separately by
   the project constitution, not by this spec).
