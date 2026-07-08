@@ -18,6 +18,13 @@
 #   with Retrofit itself since 2.10.0), NOT the third-party
 #   `com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter`, which was
 #   archived (read-only) by its author in March 2024.
+# - Encrypted BYOK storage (T014) uses `com.google.crypto.tink:tink-android` directly
+#   (AndroidKeysetManager + Aead, Keystore-backed) rather than
+#   `androidx.security.crypto`: EncryptedSharedPreferences (that library's main
+#   consumable API) is deprecated, and its lower-level Tink-primitive-exposing
+#   surface could not be confidently verified against current docs — Tink's own
+#   AndroidKeysetManager API is stable, directly documented, and is what
+#   EncryptedSharedPreferences used internally anyway.
 
 [versions]
 # Core toolchain
@@ -35,7 +42,7 @@ activityCompose = "1.13.0"
 lifecycle = "2.11.0"
 navigationCompose = "2.9.8"
 datastorePreferences = "1.2.1"
-securityCrypto = "1.1.0"
+tinkAndroid = "1.19.0"
 
 # DI
 hilt = "2.57.1"
@@ -65,7 +72,7 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
-androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tinkAndroid" }
 
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 compose-ui = { module = "androidx.compose.ui:ui" }
