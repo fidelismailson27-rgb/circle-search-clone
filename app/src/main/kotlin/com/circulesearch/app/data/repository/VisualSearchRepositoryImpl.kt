@@ -44,9 +44,10 @@ class VisualSearchRepositoryImpl
             fallbackChain: List<AiEndpointProfile>,
             imageBytes: ByteArray?,
             userText: String,
+            usedTextFallback: Boolean,
         ): Flow<ChatTurnResult> {
             val candidates = listOf(activeProfile) + fallbackChain
-            return attemptChain(candidates, emptyList(), emptySet(), imageBytes, userText)
+            return attemptChain(candidates, emptyList(), emptySet(), imageBytes, userText, usedTextFallback)
         }
 
         override fun sendFollowUpMessage(
@@ -55,7 +56,8 @@ class VisualSearchRepositoryImpl
             originalImageBytes: ByteArray?,
             candidateProfiles: List<AiEndpointProfile>,
             userText: String,
-        ): Flow<ChatTurnResult> = attemptChain(candidateProfiles, priorMessages, profilesImageAlreadySentTo, originalImageBytes, userText)
+        ): Flow<ChatTurnResult> =
+            attemptChain(candidateProfiles, priorMessages, profilesImageAlreadySentTo, originalImageBytes, userText, usedTextFallback = false)
 
         override suspend fun testConnection(profile: AiEndpointProfile): ConnectionTestResult {
             if (profile.baseUrl.isBlank() || profile.modelName.isBlank()) {
@@ -87,6 +89,7 @@ class VisualSearchRepositoryImpl
             profilesImageAlreadySentTo: Set<String>,
             imageBytes: ByteArray?,
             userText: String,
+            usedTextFallback: Boolean,
         ): Flow<ChatTurnResult> =
             flow {
                 if (profiles.isEmpty()) {
@@ -103,7 +106,7 @@ class VisualSearchRepositoryImpl
                     var producedOutput = false
                     var lastError: SearchError = SearchError.Network(IOException("No response"))
 
-                    attemptSingleProfile(profile, messages).collect { result ->
+                    attemptSingleProfile(profile, messages, usedTextFallback).collect { result ->
                         when (result) {
                             is ChatTurnResult.Streaming, is ChatTurnResult.Success -> {
                                 producedOutput = true
@@ -125,6 +128,7 @@ class VisualSearchRepositoryImpl
         private fun attemptSingleProfile(
             profile: AiEndpointProfile,
             messages: List<ChatMessageDto>,
+            usedTextFallback: Boolean,
         ): Flow<ChatTurnResult> =
             flow {
                 try {
@@ -148,7 +152,7 @@ class VisualSearchRepositoryImpl
                         }
                     }
 
-                    emit(ChatTurnResult.Success(fullText.toAssistantMessage(profile.id)))
+                    emit(ChatTurnResult.Success(fullText.toAssistantMessage(profile.id, usedTextFallback)))
                 } catch (e: IOException) {
                     emit(ChatTurnResult.Failed(SearchError.Network(e)))
                 } catch (e: kotlinx.serialization.SerializationException) {
@@ -205,16 +209,18 @@ class VisualSearchRepositoryImpl
         }
     }
 
-private fun String.toAssistantMessage(profileId: String) =
-    ChatMessage(
-        id = UUID.randomUUID().toString(),
-        role = ChatMessage.Role.Assistant,
-        textContent = this,
-        includesImage = false,
-        producedByProfileId = profileId,
-        usedTextFallback = false,
-        createdAt = Instant.now(),
-    )
+private fun String.toAssistantMessage(
+    profileId: String,
+    usedTextFallback: Boolean,
+) = ChatMessage(
+    id = UUID.randomUUID().toString(),
+    role = ChatMessage.Role.Assistant,
+    textContent = this,
+    includesImage = false,
+    producedByProfileId = profileId,
+    usedTextFallback = usedTextFallback,
+    createdAt = Instant.now(),
+)
 
 private fun ChatMessage.toDto(content: ChatContent): ChatMessageDto {
     val role =

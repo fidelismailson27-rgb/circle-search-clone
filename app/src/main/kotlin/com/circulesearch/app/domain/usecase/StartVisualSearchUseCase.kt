@@ -1,5 +1,6 @@
 package com.circulesearch.app.domain.usecase
 
+import com.circulesearch.app.domain.model.AiEndpointProfile
 import com.circulesearch.app.domain.model.ChatMessage
 import com.circulesearch.app.domain.model.SearchError
 import com.circulesearch.app.domain.repository.ChatTurnResult
@@ -54,9 +55,7 @@ class StartVisualSearchUseCase
                 when (val captureOutcome = screenCaptureRepository.captureAndProcessSelection(selection, preferences.compressionQuality)) {
                     is ScreenCaptureOutcome.Failed -> emit(VisualSearchOutcome.Failed(captureOutcome.error))
                     is ScreenCaptureOutcome.Blocked -> {
-                        // Baseline MVP behavior: a clear, non-silent failure (constitution
-                        // V). US5 (T068) routes this to the text-extraction fallback instead.
-                        emit(VisualSearchOutcome.Failed(SearchError.CaptureBlocked))
+                        emitAll(handleBlockedCapture(activeProfile, preferences.textFallbackEnabled))
                     }
                     is ScreenCaptureOutcome.Success -> {
                         val fallbackChain = endpointProfileRepository.getFallbackChain()
@@ -72,9 +71,46 @@ class StartVisualSearchUseCase
                 }
             }
 
+        /**
+         * FR-019/FR-020: when the frame is blocked (typically `FLAG_SECURE`), fall back
+         * to on-screen text extraction if the user has enabled that preference and
+         * extraction actually yields something usable — otherwise a clear failure,
+         * never a silent/blank result (constitution V).
+         */
+        private fun handleBlockedCapture(
+            activeProfile: AiEndpointProfile,
+            textFallbackEnabled: Boolean,
+        ): Flow<VisualSearchOutcome> =
+            flow {
+                if (!textFallbackEnabled) {
+                    emit(VisualSearchOutcome.Failed(SearchError.CaptureBlocked))
+                    return@flow
+                }
+
+                val extractedText = screenCaptureRepository.extractFallbackText()
+                if (extractedText.isNullOrBlank()) {
+                    emit(VisualSearchOutcome.Failed(SearchError.CaptureBlocked))
+                    return@flow
+                }
+
+                val fallbackChain = endpointProfileRepository.getFallbackChain()
+                val turns =
+                    visualSearchRepository.sendInitialMessage(
+                        activeProfile = activeProfile,
+                        fallbackChain = fallbackChain,
+                        imageBytes = null,
+                        userText = "$TEXT_FALLBACK_PROMPT\n\n$extractedText",
+                        usedTextFallback = true,
+                    )
+                emitAll(turns.map { it.toOutcome(imageBytesSent = null) })
+            }
+
         private companion object {
             const val INITIAL_TURN_PROMPT =
                 "Describe what's circled in this image and answer any obvious question about it."
+            const val TEXT_FALLBACK_PROMPT =
+                "The screen could not be captured as an image, so here is the on-screen text instead. " +
+                    "Answer based on this text:"
         }
     }
 

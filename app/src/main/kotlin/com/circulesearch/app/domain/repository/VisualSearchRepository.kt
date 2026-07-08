@@ -22,6 +22,7 @@ interface VisualSearchRepository {
         fallbackChain: List<AiEndpointProfile>,
         imageBytes: ByteArray?,
         userText: String,
+        usedTextFallback: Boolean = false,
     ): Flow<ChatTurnResult>
 
     /**

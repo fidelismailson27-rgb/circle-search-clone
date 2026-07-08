@@ -6,11 +6,20 @@ import javax.inject.Inject
 /**
  * Sparse pixel-grid sampling heuristic to detect a black/blank captured frame —
  * typically caused by `FLAG_SECURE` on the foreground app (constitution V,
- * research.md). v1: gates on the sampled color being *near-black*, not merely flat,
- * so a legitimately flat but brightly-colored screen doesn't trip this heuristic.
- * Wired here to a baseline "couldn't capture this screen" failure for the MVP;
- * hardened against ambiguous cases and routed to the text-extraction fallback by
- * US5 (T066-T068).
+ * research.md).
+ *
+ * Hardened (T067) against two ambiguous cases found while writing
+ * `BlackFrameDetectorTest` (T066):
+ * - **False positive risk**: a legitimately dark, uniform color (e.g. Material dark
+ *   theme's `#121212` surface) must not trip this — gated on the sampled color being
+ *   *near-black* specifically, not merely flat/uniform.
+ * - **False negative risk**: a real `FLAG_SECURE` capture is rarely *perfectly*
+ *   uniform across the whole frame — the status/navigation bar chrome commonly
+ *   remains visible around the blacked-out app content. Requiring every single
+ *   sampled pixel to be identically black (the original v1 check) would miss this
+ *   entirely. Hardened to a proportion threshold instead: blocked if the large
+ *   majority of samples are near-black, tolerating a minority (system bars) that
+ *   aren't.
  */
 class BlackFrameDetector
     @Inject
@@ -20,21 +29,18 @@ class BlackFrameDetector
             val height = bitmap.height
             if (width == 0 || height == 0) return true
 
-            var referenceColor: Int? = null
+            var nearBlackSamples = 0
+            var totalSamples = 0
             for (row in 0 until SAMPLE_GRID_SIZE) {
                 for (col in 0 until SAMPLE_GRID_SIZE) {
                     val x = (width - 1) * col / (SAMPLE_GRID_SIZE - 1)
                     val y = (height - 1) * row / (SAMPLE_GRID_SIZE - 1)
-                    val pixel = bitmap.getPixel(x, y)
-                    val previous = referenceColor
-                    if (previous == null) {
-                        referenceColor = pixel
-                    } else if (pixel != previous) {
-                        return false
-                    }
+                    totalSamples++
+                    if (isNearBlack(bitmap.getPixel(x, y))) nearBlackSamples++
                 }
             }
-            return referenceColor?.let(::isNearBlack) ?: true
+
+            return totalSamples > 0 && nearBlackSamples.toFloat() / totalSamples >= BLOCKED_PROPORTION_THRESHOLD
         }
 
         private fun isNearBlack(color: Int): Boolean {
@@ -47,5 +53,9 @@ class BlackFrameDetector
         private companion object {
             const val SAMPLE_GRID_SIZE = 9
             const val NEAR_BLACK_THRESHOLD = 12
+
+            // Tolerates a minority of non-black samples (status/navigation bar chrome)
+            // while still requiring the large majority of the frame to be black.
+            const val BLOCKED_PROPORTION_THRESHOLD = 0.85f
         }
     }

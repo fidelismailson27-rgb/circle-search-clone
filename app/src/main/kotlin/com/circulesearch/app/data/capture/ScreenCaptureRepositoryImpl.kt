@@ -2,6 +2,7 @@ package com.circulesearch.app.data.capture
 
 import android.content.Context
 import android.content.Intent
+import com.circulesearch.app.data.accessibility.TextExtractionFallback
 import com.circulesearch.app.domain.model.SearchError
 import com.circulesearch.app.domain.repository.OverlaySelectionRegion
 import com.circulesearch.app.domain.repository.ScreenCaptureOutcome
@@ -25,6 +26,7 @@ class ScreenCaptureRepositoryImpl
         private val captureCoordinator: CaptureCoordinator,
         private val blackFrameDetector: BlackFrameDetector,
         private val imageProcessor: SelectionImageProcessor,
+        private val textExtractionFallback: TextExtractionFallback,
     ) : ScreenCaptureRepository {
         override suspend fun captureAndProcessSelection(
             selection: OverlaySelectionRegion,
@@ -37,6 +39,8 @@ class ScreenCaptureRepositoryImpl
                 is CaptureResult.Success -> processCapturedFrame(result, selection, compressionQuality)
             }
         }
+
+        override suspend fun extractFallbackText(): String? = textExtractionFallback.extractVisibleText()
 
         private fun launchConsentFlow() {
             val consentIntent =

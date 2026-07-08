@@ -14,6 +14,13 @@ interface ScreenCaptureRepository {
         selection: OverlaySelectionRegion,
         compressionQuality: Int,
     ): ScreenCaptureOutcome
+
+    /**
+     * On-demand text extraction (US5, FR-019) — called only after [captureAndProcessSelection]
+     * returns [ScreenCaptureOutcome.Blocked]. Returns null if extraction itself yields
+     * nothing usable (FR-020's "unavailable" case).
+     */
+    suspend fun extractFallbackText(): String?
 }
 
 /** Selection bounds in the overlay window's own pixel space, plus that window's pixel size for mapping. */
