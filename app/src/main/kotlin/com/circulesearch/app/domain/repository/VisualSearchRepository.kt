@@ -2,6 +2,7 @@ package com.circulesearch.app.domain.repository
 
 import com.circulesearch.app.domain.model.AiEndpointProfile
 import com.circulesearch.app.domain.model.ChatMessage
+import com.circulesearch.app.domain.model.ConnectionTestResult
 import com.circulesearch.app.domain.model.SearchError
 import kotlinx.coroutines.flow.Flow
 
@@ -39,6 +40,9 @@ interface VisualSearchRepository {
         candidateProfiles: List<AiEndpointProfile>,
         userText: String,
     ): Flow<ChatTurnResult>
+
+    /** On-demand connection test for a single profile (FR-010) — never hangs indefinitely. */
+    suspend fun testConnection(profile: AiEndpointProfile): ConnectionTestResult
 }
 
 /** One turn's lifecycle, surfaced to the UI as explicit states (constitution X). */

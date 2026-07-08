@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -15,6 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.circulesearch.app.domain.model.ChatMessage
 import com.circulesearch.app.domain.model.SearchError
 
 /**
@@ -47,9 +49,12 @@ fun ResultBottomSheet(
             when (val state = uiState) {
                 is ResultUiState.Idle -> Unit
                 is ResultUiState.Loading -> LoadingSkeleton()
-                is ResultUiState.Streaming -> Text(state.partialText)
+                is ResultUiState.Streaming -> {
+                    Text(state.partialText)
+                    state.answeredByProfileName?.let { AnsweredByLabel(it) }
+                }
                 is ResultUiState.Conversation -> {
-                    state.session.messages.forEach { message -> Text(message.textContent) }
+                    state.session.messages.forEach { message -> MessageRow(message, viewModel::profileName) }
                 }
                 is ResultUiState.Error -> ErrorState(error = state.error, onRetry = viewModel::retry)
             }
@@ -60,6 +65,29 @@ fun ResultBottomSheet(
 @Composable
 private fun LoadingSkeleton() {
     CircularProgressIndicator()
+}
+
+@Composable
+private fun MessageRow(
+    message: ChatMessage,
+    resolveProfileName: (String?) -> String?,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(message.textContent)
+        if (message.role == ChatMessage.Role.Assistant) {
+            resolveProfileName(message.producedByProfileId)?.let { AnsweredByLabel(it) }
+        }
+    }
+}
+
+/** FR-015: discreet, not intrusive — small caption text, not a banner/dialog. */
+@Composable
+private fun AnsweredByLabel(profileName: String) {
+    Text(
+        text = "Answered by $profileName",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -81,7 +109,11 @@ private fun SearchError.toUserMessage(): String =
         is SearchError.Timeout -> "The request took too long. Try again."
         is SearchError.Http -> "The AI endpoint returned an error (code $code)."
         is SearchError.MalformedResponse -> "The AI endpoint's response couldn't be understood."
-        is SearchError.AllProfilesExhausted -> "All configured AI endpoints failed to respond."
+        is SearchError.AllProfilesExhausted -> {
+            // FR-016: one clear, aggregated error naming every profile that was tried.
+            val names = attempts.joinToString(", ") { it.profileName }
+            "All configured AI endpoints failed to respond: $names."
+        }
         is SearchError.CaptureBlocked -> "This screen couldn't be captured."
         is SearchError.NoActiveProfileConfigured -> "No AI endpoint is configured yet. Open Settings to add one."
         is SearchError.Cancelled -> "Search cancelled."

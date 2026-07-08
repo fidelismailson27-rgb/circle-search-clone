@@ -12,11 +12,12 @@ import com.circulesearch.app.data.network.dto.ContentPart
 import com.circulesearch.app.data.network.dto.ImageUrlValue
 import com.circulesearch.app.domain.model.AiEndpointProfile
 import com.circulesearch.app.domain.model.ChatMessage
+import com.circulesearch.app.domain.model.ConnectionTestResult
+import com.circulesearch.app.domain.model.ProfileAttempt
 import com.circulesearch.app.domain.model.SearchError
 import com.circulesearch.app.domain.repository.ChatTurnResult
 import com.circulesearch.app.domain.repository.VisualSearchRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import java.io.IOException
 import java.time.Instant
@@ -26,9 +27,10 @@ import javax.inject.Inject
 
 /**
  * Single OpenAI-compatible network path (research.md R4) — one code path builds and
- * sends every request regardless of which BYOK profile it targets. T033 covers the
- * initial-turn send against a single profile; US2's T047 extends [attemptChain] with
- * the actual retry-the-next-profile-on-failure loop.
+ * sends every request regardless of which BYOK profile it targets. [attemptChain]
+ * walks [profiles] in order, retrying the next one on failure (FR-014), stopping at
+ * the first profile that produces any output, and emitting an aggregated error
+ * (FR-016) if every candidate fails.
  */
 class VisualSearchRepositoryImpl
     @Inject
@@ -55,6 +57,30 @@ class VisualSearchRepositoryImpl
             userText: String,
         ): Flow<ChatTurnResult> = attemptChain(candidateProfiles, priorMessages, profilesImageAlreadySentTo, originalImageBytes, userText)
 
+        override suspend fun testConnection(profile: AiEndpointProfile): ConnectionTestResult {
+            if (profile.baseUrl.isBlank() || profile.modelName.isBlank()) {
+                return ConnectionTestResult(Instant.now(), success = false, message = "Base URL and model are required.")
+            }
+            return try {
+                val request =
+                    ChatCompletionRequest(
+                        model = profile.modelName,
+                        messages = listOf(ChatMessageDto(role = "user", content = ChatContent.Text(TEST_PROMPT))),
+                        stream = false,
+                    )
+                val response = api.chatCompletion(profile.chatCompletionsUrl(), request, ProfileAuthTag(profile.apiKey))
+                if (response.isSuccessful) {
+                    ConnectionTestResult(Instant.now(), success = true, message = "Connected successfully.")
+                } else {
+                    val body = response.errorBody()?.string().orEmpty()
+                    ConnectionTestResult(Instant.now(), success = false, message = "HTTP ${response.code()}: $body".take(MAX_TEST_MESSAGE_LENGTH))
+                }
+            } catch (e: IOException) {
+                ConnectionTestResult(Instant.now(), success = false, message = e.message ?: "Network error.")
+            }
+        }
+
+        /** FR-014/FR-016: try each candidate profile in order; stop at the first that produces any output. */
         private fun attemptChain(
             profiles: List<AiEndpointProfile>,
             priorMessages: List<ChatMessage>,
@@ -63,15 +89,37 @@ class VisualSearchRepositoryImpl
             userText: String,
         ): Flow<ChatTurnResult> =
             flow {
-                val profile = profiles.firstOrNull()
-                if (profile == null) {
+                if (profiles.isEmpty()) {
                     emit(ChatTurnResult.Failed(SearchError.NoActiveProfileConfigured))
                     return@flow
                 }
 
-                val attachImage = imageBytes != null && imageAttachmentPolicy.shouldAttachImage(profile.id, profilesImageAlreadySentTo)
-                val messages = buildMessages(priorMessages, userText, imageBytes, attachImage)
-                emitAll(attemptSingleProfile(profile, messages))
+                val failedAttempts = mutableListOf<ProfileAttempt>()
+
+                for ((index, profile) in profiles.withIndex()) {
+                    val attachImage = imageBytes != null && imageAttachmentPolicy.shouldAttachImage(profile.id, profilesImageAlreadySentTo)
+                    val messages = buildMessages(priorMessages, userText, imageBytes, attachImage)
+
+                    var producedOutput = false
+                    var lastError: SearchError = SearchError.Network(IOException("No response"))
+
+                    attemptSingleProfile(profile, messages).collect { result ->
+                        when (result) {
+                            is ChatTurnResult.Streaming, is ChatTurnResult.Success -> {
+                                producedOutput = true
+                                emit(result)
+                            }
+                            is ChatTurnResult.Failed -> lastError = result.error
+                        }
+                    }
+
+                    if (producedOutput) return@flow
+
+                    failedAttempts += ProfileAttempt(profile.id, profile.name, lastError)
+                    if (index == profiles.lastIndex) {
+                        emit(ChatTurnResult.Failed(SearchError.AllProfilesExhausted(failedAttempts)))
+                    }
+                }
             }
 
         private fun attemptSingleProfile(
@@ -81,8 +129,7 @@ class VisualSearchRepositoryImpl
             flow {
                 try {
                     val request = ChatCompletionRequest(model = profile.modelName, messages = messages, stream = true)
-                    val url = profile.baseUrl.trimEnd('/') + CHAT_COMPLETIONS_PATH
-                    val response = api.chatCompletion(url, request, ProfileAuthTag(profile.apiKey))
+                    val response = api.chatCompletion(profile.chatCompletionsUrl(), request, ProfileAuthTag(profile.apiKey))
 
                     if (!response.isSuccessful) {
                         val errorBody = response.errorBody()?.string()
@@ -149,8 +196,12 @@ class VisualSearchRepositoryImpl
             )
         }
 
+        private fun AiEndpointProfile.chatCompletionsUrl(): String = baseUrl.trimEnd('/') + CHAT_COMPLETIONS_PATH
+
         private companion object {
             const val CHAT_COMPLETIONS_PATH = "/chat/completions"
+            const val TEST_PROMPT = "Reply with \"ok\"."
+            const val MAX_TEST_MESSAGE_LENGTH = 200
         }
     }
 

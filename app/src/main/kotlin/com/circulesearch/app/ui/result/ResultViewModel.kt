@@ -1,11 +1,14 @@
 package com.circulesearch.app.ui.result
 
+import com.circulesearch.app.di.DefaultDispatcher
+import com.circulesearch.app.domain.model.AiEndpointProfile
 import com.circulesearch.app.domain.model.ConversationSession
 import com.circulesearch.app.domain.model.SearchError
+import com.circulesearch.app.domain.repository.EndpointProfileRepository
 import com.circulesearch.app.domain.repository.OverlaySelectionRegion
 import com.circulesearch.app.domain.usecase.StartVisualSearchUseCase
 import com.circulesearch.app.domain.usecase.VisualSearchOutcome
-import com.circulesearch.app.di.DefaultDispatcher
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -13,6 +16,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -34,13 +38,15 @@ class ResultViewModel
     @Inject
     constructor(
         private val startVisualSearchUseCase: StartVisualSearchUseCase,
-        @DefaultDispatcher defaultDispatcher: kotlinx.coroutines.CoroutineDispatcher,
+        private val endpointProfileRepository: EndpointProfileRepository,
+        @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + defaultDispatcher)
 
         private val _uiState = MutableStateFlow<ResultUiState>(ResultUiState.Idle)
         val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
 
+        private var knownProfiles: List<AiEndpointProfile> = emptyList()
         private var searchJob: Job? = null
         private var lastSelection: OverlaySelectionRegion? = null
 
@@ -52,6 +58,9 @@ class ResultViewModel
 
             searchJob =
                 scope.launch {
+                    // Snapshot for resolving "answered by {name}" (FR-015) — profile names
+                    // don't need to be live-reactive mid-search.
+                    knownProfiles = endpointProfileRepository.observeProfiles().first()
                     startVisualSearchUseCase(selection).collect(::applyOutcome)
                 }
         }
@@ -77,11 +86,15 @@ class ResultViewModel
             _uiState.value =
                 when (outcome) {
                     is VisualSearchOutcome.Capturing -> ResultUiState.Loading
-                    is VisualSearchOutcome.Streaming -> ResultUiState.Streaming(outcome.partialText)
+                    is VisualSearchOutcome.Streaming ->
+                        ResultUiState.Streaming(outcome.partialText, profileName(outcome.answeredByProfileId))
                     is VisualSearchOutcome.Succeeded -> ResultUiState.Conversation(outcome.toInitialSession())
                     is VisualSearchOutcome.Failed -> ResultUiState.Error(outcome.error)
                 }
         }
+
+        /** Exposed for the UI to render the FR-015 "answered by {name}" indicator next to a message. */
+        fun profileName(profileId: String?): String? = profileId?.let { id -> knownProfiles.find { it.id == id }?.name }
 
         private fun VisualSearchOutcome.Succeeded.toInitialSession(): ConversationSession =
             ConversationSession(
@@ -100,7 +113,8 @@ sealed interface ResultUiState {
 
     data object Loading : ResultUiState
 
-    data class Streaming(val partialText: String) : ResultUiState
+    /** [answeredByProfileName] is discreetly shown once known, even mid-stream (FR-015). */
+    data class Streaming(val partialText: String, val answeredByProfileName: String?) : ResultUiState
 
     data class Conversation(val session: ConversationSession) : ResultUiState
 
