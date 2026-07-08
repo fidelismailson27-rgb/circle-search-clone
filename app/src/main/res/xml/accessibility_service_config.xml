@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Constitution IV: minimum flags and event types needed. This service is a lightweight
+  trigger surface plus the AccessibilityNodeInfo text-extraction fallback (US5) — it
+  must never do continuous screen scraping, so it does not request
+  canRetrieveWindowContent-driven continuous event streams beyond what on-demand text
+  extraction needs.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="100" />

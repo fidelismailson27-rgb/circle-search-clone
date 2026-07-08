@@ -43,7 +43,19 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
-        <!-- Still to add: MainActivity/TriggerAccessibilityService, by T064, T062. -->
+        <service
+            android:name=".data.accessibility.TriggerAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- Still to add: MainActivity, by T064. -->
 
     </application>
 

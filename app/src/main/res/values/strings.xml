@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Circle Search</string>
+    <string name="accessibility_service_description">Lets Circle Search read on-screen
+        text as a fallback when a screen blocks normal screen capture (e.g. banking or
+        streaming apps). It does not run continuously and does not record anything in
+        the background.</string>
 </resources>
