@@ -262,7 +262,10 @@ automatically and transparently.
   `app/src/main/kotlin/com/circulesearch/app/domain/usecase/TestEndpointConnectionUseCase.kt`
   (depends on T018)
 - [ ] T046 [US2] Implement `SaveEndpointProfileUseCase` and `ReorderFallbackUseCase`
-  (field validation, single-active-profile invariant, FR-008/FR-009/FR-011) in
+  (field validation, single-active-profile invariant, FR-008/FR-009/FR-011), including
+  rejecting any `http://` Base URL whose host is not loopback/private/link-local
+  (research.md R4 correction — the OS network security config alone cannot express
+  this, see T006/`network_security_config.xml`) in
   `app/src/main/kotlin/com/circulesearch/app/domain/usecase/`
 - [ ] T047 [US2] Implement automatic fallback retry in `VisualSearchRepositoryImpl`:
   on network error, timeout, HTTP error response, or malformed/unparseable response

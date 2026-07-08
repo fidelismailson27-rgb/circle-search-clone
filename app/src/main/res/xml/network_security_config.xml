@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Constitution IX / research.md R4: BYOK profiles may point at a local-network AI
+  endpoint (e.g. Ollama on the same LAN), which is often plain HTTP.
+
+  IMPORTANT — two-layer enforcement, verified against the real schema: Android's
+  network-security-config <domain> element only matches exact hostnames/subdomains;
+  it has NO support for CIDR ranges or IP wildcards (confirmed against
+  developer.android.com/privacy-and-security/security-config — there is no
+  <ip-address> element and no range syntax). A static, build-time XML file cannot by
+  itself express "any private IP" for a host the user only supplies at runtime in
+  Settings. So the actual "private IP only" restriction constitution IX requires is
+  enforced in two layers:
+    1. This file allows cleartext at all (base-config), which is required for ANY
+       local/self-hosted http:// profile to be reachable at all.
+    2. The app itself rejects, at profile-save time (SaveEndpointProfileUseCase) and
+       defensively again at request time, any http:// Base URL whose host does not
+       resolve to a loopback/private/link-local address (java.net.InetAddress —
+       isLoopbackAddress()/isSiteLocalAddress()/isLinkLocalAddress()). A public
+       http:// URL is refused by the app before a request is ever attempted, even
+       though the OS-level cleartext gate alone would technically allow it.
+  Public HTTPS traffic is unaffected either way (cleartextTrafficPermitted only
+  governs plaintext HTTP).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -212,10 +212,20 @@ never a code branch or subclass.
   incrementally (token-by-token UI updates); any other content type (a provider/local
   server that ignored `stream: true`) is parsed as one plain JSON object. This branch
   happens once, at the transport layer, not per provider.
-- **Cleartext for local/private endpoints**: `networkSecurityConfig` allows
-  `cleartextTrafficPermitted` only for private IP ranges (RFC1918 `10.0.0.0/8`,
-  `172.16.0.0/12`, `192.168.0.0/16`) and `localhost`, so a profile pointed at a home
-  Ollama instance works over plain HTTP without a blanket cleartext allowance.
+- **Cleartext for local/private endpoints — corrected during implementation (T006)**:
+  Android's `network-security-config` `<domain>` element only matches exact
+  hostnames/subdomains — verified against developer.android.com/privacy-and-security/
+  security-config, there is no `<ip-address>` element and no CIDR/range syntax. A
+  static XML file therefore cannot itself express "cleartext allowed only for private
+  IPs" for a host the user supplies at runtime. The actual restriction is enforced in
+  two layers instead: (1) `network_security_config.xml` permits cleartext at the OS
+  level unconditionally (required for any local `http://` profile to be reachable at
+  all), and (2) the app itself — in `SaveEndpointProfileUseCase`, and defensively
+  again before each request — rejects any `http://` Base URL whose host does not
+  resolve to a loopback/site-local/link-local address (`java.net.InetAddress`).
+  Public HTTPS traffic is unaffected by either layer. This correction was found and
+  fixed by verifying the real schema before implementing T006, rather than trusting
+  the original (incorrect) assumption made during planning.
 
 **Rationale**: this is a direct, literal implementation of constitution principle IX
 ("cliente de rede ÚNICO no formato OpenAI-compatible... sem adaptadores separados por
