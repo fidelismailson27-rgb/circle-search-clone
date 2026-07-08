@@ -1,14 +1,15 @@
 package com.circulesearch.app.ui.result
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.circulesearch.app.domain.model.ConversationSession
 import com.circulesearch.app.domain.model.SearchError
 import com.circulesearch.app.domain.repository.OverlaySelectionRegion
 import com.circulesearch.app.domain.usecase.StartVisualSearchUseCase
 import com.circulesearch.app.domain.usecase.VisualSearchOutcome
-import dagger.hilt.android.lifecycle.HiltViewModel
+import com.circulesearch.app.di.DefaultDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,16 +19,25 @@ import javax.inject.Inject
 
 /**
  * Owns the result panel's [ResultUiState] and the [ConversationSession] it displays
- * (data-model.md — the ViewModel owns the session, never persisted). A new search
+ * (data-model.md — this object owns the session, never persisted). A new search
  * cancels any prior one still in flight (FR-018/FR-023); dismissing the panel cancels
  * whatever is in flight and drops the whole session (FR-007/FR-028/FR-029).
+ *
+ * Deliberately **not** an `androidx.lifecycle.ViewModel`: the result panel is hosted
+ * inside a `WindowManager` overlay (research.md R1), not a normal Activity/Fragment/
+ * nav-graph destination, so there is no `ViewModelStoreOwner` to scope a real
+ * `ViewModel` to, and no configuration-change-survival need to justify one — this
+ * object's natural lifetime already matches exactly one search interaction, owned and
+ * explicitly `close()`d by whatever coordinates the overlay (T022).
  */
-@HiltViewModel
 class ResultViewModel
     @Inject
     constructor(
         private val startVisualSearchUseCase: StartVisualSearchUseCase,
-    ) : ViewModel() {
+        @DefaultDispatcher defaultDispatcher: kotlinx.coroutines.CoroutineDispatcher,
+    ) {
+        private val scope = CoroutineScope(SupervisorJob() + defaultDispatcher)
+
         private val _uiState = MutableStateFlow<ResultUiState>(ResultUiState.Idle)
         val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
 
@@ -41,7 +51,7 @@ class ResultViewModel
             _uiState.value = ResultUiState.Loading
 
             searchJob =
-                viewModelScope.launch {
+                scope.launch {
                     startVisualSearchUseCase(selection).collect(::applyOutcome)
                 }
         }
@@ -58,9 +68,9 @@ class ResultViewModel
             _uiState.value = ResultUiState.Idle
         }
 
-        override fun onCleared() {
-            searchJob?.cancel()
-            super.onCleared()
+        /** Must be called by the owner when the overlay is torn down — releases this object's scope entirely. */
+        fun close() {
+            scope.cancel()
         }
 
         private fun applyOutcome(outcome: VisualSearchOutcome) {

@@ -19,6 +19,20 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/Theme.CircleSearch">
 
+        <!-- Contract: specs/001-visual-search-assistant/contracts/trigger-intent-contract.md (T009) -->
+        <activity
+            android:name=".ui.trigger.TriggerEntryActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:theme="@style/Theme.CircleSearch.Transparent">
+            <intent-filter>
+                <action android:name="com.circulesearch.app.action.START_VISUAL_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".data.capture.MediaProjectionConsentActivity"
             android:exported="false"
@@ -29,7 +43,7 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
-        <!-- Still to add: TriggerEntryActivity/MainActivity/TriggerAccessibilityService, by T022, T064, T062. -->
+        <!-- Still to add: MainActivity/TriggerAccessibilityService, by T064, T062. -->
 
     </application>
 
