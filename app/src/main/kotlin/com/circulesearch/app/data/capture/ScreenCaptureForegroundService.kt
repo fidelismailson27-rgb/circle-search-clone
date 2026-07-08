@@ -72,6 +72,13 @@ class ScreenCaptureForegroundService : Service() {
 
         val projectionManager = getSystemService(MediaProjectionManager::class.java)
         val projection = projectionManager.getMediaProjection(resultCode, resultData)
+        if (projection == null) {
+            serviceScope.launch {
+                captureCoordinator.publish(CaptureResult.Failed(CaptureFailureReason.ConsentDenied))
+            }
+            stopSelf()
+            return START_NOT_STICKY
+        }
         projection.registerCallback(projectionCallback, null)
         mediaProjection = projection
 

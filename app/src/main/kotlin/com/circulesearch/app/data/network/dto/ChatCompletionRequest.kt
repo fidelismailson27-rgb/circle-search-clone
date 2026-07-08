@@ -4,8 +4,9 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.descriptors.buildSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonArray
@@ -62,7 +63,12 @@ data class ImageUrlValue(val url: String)
 object ChatContentSerializer : KSerializer<ChatContent> {
     private val partsSerializer = ListSerializer(ContentPart.serializer())
 
-    override val descriptor: SerialDescriptor = buildSerialDescriptor("ChatContent", kotlinx.serialization.descriptors.SerialKind.CONTEXTUAL)
+    // A STRING-kind descriptor is a placeholder: this serializer always manually
+    // reads/writes a raw JsonElement (string or array) rather than delegating to the
+    // descriptor's structure, so its exact PrimitiveKind is not load-bearing — using
+    // SerialKind.CONTEXTUAL here would require @InternalSerializationApi opt-in for
+    // no actual benefit.
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("ChatContent", PrimitiveKind.STRING)
 
     override fun serialize(
         encoder: Encoder,
