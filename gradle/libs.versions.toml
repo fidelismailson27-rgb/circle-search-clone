@@ -107,7 +107,9 @@ turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+# No "kotlin-android" plugin entry: AGP 9.0+ has built-in Kotlin support, and
+# org.jetbrains.kotlin.android is no longer required/accepted (found via a real CI
+# failure — see build.gradle.kts and app/build.gradle.kts comments).
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

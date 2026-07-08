@@ -1,16 +1,22 @@
+// No `org.jetbrains.kotlin.android` plugin: AGP 9.0+ compiles Kotlin via its own
+// built-in support, and that plugin is no longer required or accepted (verified
+// against a real CI failure and Android's migrate-to-built-in-kotlin guide).
+//
 // Hilt's annotation processor runs via kapt rather than KSP here: as of this pin
 // (Kotlin 2.4.0), no KSP release targeting Kotlin 2.4.x has shipped yet (KSP trails
 // new Kotlin releases by design) — kapt is verified compatible with 2.4.0 via its K1
-// compatibility mode. Revisit and migrate to KSP once a matching KSP release exists.
+// compatibility mode. Under built-in Kotlin, kapt itself is applied via AGP's own
+// `com.android.legacy-kapt` plugin rather than the Kotlin Gradle plugin's `kapt`,
+// per the same migration guide. Revisit and migrate to KSP once a matching KSP
+// release exists.
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
-    kotlin("kapt")
+    id("com.android.legacy-kapt")
 }
 
 android {
@@ -46,10 +52,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    // No separate `kotlinOptions { jvmTarget = ... }` block: under AGP 9's built-in
+    // Kotlin support, that DSL came from the now-removed `org.jetbrains.kotlin.android`
+    // plugin. The Kotlin JVM target now defaults to `compileOptions.targetCompatibility`
+    // above.
 
     buildFeatures {
         compose = true
