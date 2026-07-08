@@ -1,10 +1,12 @@
 package com.circulesearch.app.ui.overlay
 
-import androidx.compose.ui.geometry.Rect
 import kotlin.math.roundToInt
 import android.graphics.Rect as AndroidRect
 
 data class PixelSize(val width: Int, val height: Int)
+
+/** Framework-neutral float rect — decouples [CoordinateMapper] from any UI toolkit's own Rect type. */
+data class FloatBounds(val left: Float, val top: Float, val right: Float, val bottom: Float)
 
 /**
  * Maps a selection bounding box from the overlay window's own pixel coordinate space
@@ -13,10 +15,15 @@ data class PixelSize(val width: Int, val height: Int)
  * specific capture they describe — never cached from a previous invocation — so this
  * stays correct across multi-window/split-screen and foldable posture changes that
  * may occur between when the overlay was shown and when capture actually completes.
+ *
+ * Pure geometry — no Compose/Android UI framework dependency — so it can be called
+ * from the `data.capture` pipeline (which learns the captured `Bitmap`'s actual pixel
+ * size only after capture) as well as from `ui.overlay`, without either layer
+ * depending on the other's framework types (constitution II).
  */
 object CoordinateMapper {
     fun mapToBitmapSpace(
-        selectionInOverlaySpace: Rect,
+        selectionInOverlaySpace: FloatBounds,
         overlayWindowPixelSize: PixelSize,
         capturedBitmapPixelSize: PixelSize,
     ): AndroidRect {
