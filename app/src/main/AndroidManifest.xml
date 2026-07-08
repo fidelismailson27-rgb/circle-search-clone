@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Overlay of TYPE_APPLICATION_OVERLAY for the selection UI (constitution VI) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Foreground service hosting the single-frame MediaProjection capture (constitution X) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+    <!-- Talking to the user's own BYOK AI endpoint (constitution IX) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.CircleSearch">
+
+        <!--
+          No android:name (Application class), networkSecurityConfig, or
+          activities/services declared yet — each is added by the tasks.md task that
+          implements it: android:name by T012, networkSecurityConfig by T006,
+          TriggerEntryActivity/MainActivity/MediaProjectionConsentActivity/
+          ScreenCaptureForegroundService/TriggerAccessibilityService by T022, T064,
+          T027, T028, T062 respectively.
+        -->
+
+    </application>
+
+</manifest>

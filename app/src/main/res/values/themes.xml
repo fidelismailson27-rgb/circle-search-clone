@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Platform base theme only — deliberately not depending on the classic
+      com.google.android.material Material Components library, since UI is 100%
+      Jetpack Compose (constitution I). This theme only governs the window before
+      Compose content is set and the manifest-level defaults; all real theming
+      (colors, typography, shapes) lives in ui/theme/Theme.kt via MaterialTheme (M3).
+    -->
+    <style name="Theme.CircleSearch" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">false</item>
+    </style>
+
+    <!-- Used by TriggerEntryActivity and MediaProjectionConsentActivity (US1),
+         which must not show any visible chrome of their own. -->
+    <style name="Theme.CircleSearch.Transparent" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>
