@@ -1,0 +1,37 @@
+# Claude Code local settings (may contain machine-specific config)
+.claude/settings.local.json
+
+# Gradle
+.gradle/
+build/
+*/build/
+*/*/build/
+out/
+
+# Local configuration
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.DS_Store
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing (never commit keystores or secrets)
+*.jks
+*.keystore
+keystore.properties
+
+# Logs
+*.log
+
+# Kotlin
+.kotlin/
