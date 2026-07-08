@@ -15,23 +15,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 
 /**
  * Freeform/rectangular lasso selection drawn over a transparent background
  * (constitution VI). The live drag's bounding box is reported via
  * [onSelectionChanged]; the finished selection via [onSelectionConfirmed] once the
- * drag ends — [SelectionOverlayWindow] hosts this over the still-visible app
- * underneath, per research.md R1.
+ * drag ends and meets [MIN_SELECTION_SIZE_DP] on both axes (FR-021) — a smaller
+ * selection instead calls [onSelectionTooSmall] so the caller can prompt a redraw,
+ * rather than submitting a near-empty image. [SelectionOverlayWindow] hosts this over
+ * the still-visible app underneath, per research.md R1.
  */
 @Composable
 fun SelectionCanvas(
     onSelectionChanged: (Rect?) -> Unit,
     onSelectionConfirmed: (Rect) -> Unit,
     modifier: Modifier = Modifier,
+    onSelectionTooSmall: () -> Unit = {},
 ) {
     var path by remember { mutableStateOf(Path()) }
     var boundingBox by remember { mutableStateOf<Rect?>(null) }
     val points = remember { mutableListOf<Offset>() }
+    val minSelectionSidePx = with(LocalDensity.current) { MIN_SELECTION_SIZE_DP.dp.toPx() }
 
     Canvas(
         modifier =
@@ -54,7 +60,12 @@ fun SelectionCanvas(
                             onSelectionChanged(boundingBox)
                         },
                         onDragEnd = {
-                            boundingBox?.let(onSelectionConfirmed)
+                            val box = boundingBox
+                            if (box != null && box.width >= minSelectionSidePx && box.height >= minSelectionSidePx) {
+                                onSelectionConfirmed(box)
+                            } else {
+                                onSelectionTooSmall()
+                            }
                         },
                     )
                 },
@@ -82,3 +93,7 @@ private fun List<Offset>.boundingBox(): Rect {
 
 private const val STROKE_WIDTH_PX = 4f
 private val SELECTION_FILL_COLOR = Color.White.copy(alpha = 0.15f)
+
+// Matches Android's standard minimum touch-target size — doubles as a reasonable
+// "was this obviously not a deliberate drag" signal (research.md, FR-021).
+private const val MIN_SELECTION_SIZE_DP = 24
