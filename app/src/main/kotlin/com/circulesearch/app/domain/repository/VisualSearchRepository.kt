@@ -26,11 +26,16 @@ interface VisualSearchRepository {
     /**
      * Sends a follow-up turn (FR-026/FR-027), replaying [priorMessages] in full.
      * [candidateProfiles] is ordered: the session-pinned profile first if one is set
-     * (research.md R2), then the remaining fallback chain.
+     * (research.md R2), then the remaining fallback chain. [originalImageBytes] is the
+     * session's original compressed selection — kept available (not just its prior
+     * text description) so it can be re-attached under [ImageAttachmentPolicy] if a
+     * fallback introduces a profile that has not seen it yet (R3); null if the
+     * session's initial turn itself had no image (text-fallback-only session).
      */
     fun sendFollowUpMessage(
         priorMessages: List<ChatMessage>,
         profilesImageAlreadySentTo: Set<String>,
+        originalImageBytes: ByteArray?,
         candidateProfiles: List<AiEndpointProfile>,
         userText: String,
     ): Flow<ChatTurnResult>
