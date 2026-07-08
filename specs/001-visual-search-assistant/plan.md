@@ -189,20 +189,23 @@ literal implementation of constitution IX and is detailed in research.md R4.
 
 ```text
 specs/001-visual-search-assistant/
-├── plan.md              # This file
-├── research.md           # Phase 0 output — decisions, rationale, alternatives
-├── data-model.md         # Phase 1 output — entities, fields, relationships, lifecycle
-├── quickstart.md         # Phase 1 output — manual end-to-end validation guide
-└── tasks.md              # Phase 2 output (/speckit-tasks — not created by this plan)
+├── plan.md                          # This file
+├── research.md                      # Phase 0 output — decisions, rationale, alternatives
+├── data-model.md                    # Phase 1 output — entities, fields, relationships, lifecycle
+├── quickstart.md                    # Phase 1 output — manual end-to-end validation guide
+├── contracts/
+│   └── trigger-intent-contract.md   # Phase 2 output (/speckit-tasks) — the app's one public interface
+└── tasks.md                         # Phase 2 output (/speckit-tasks — not created by this plan)
 ```
 
-No `contracts/` directory: this app has no API of its own to document a machine-
-readable contract for (it is a client of an external, user-owned endpoint whose
-contract is the OpenAI chat-completions shape already fully specified in research.md
-R4 and data-model.md). The one true "interface" this app exposes to the *outside* world
-— the externally-invokable trigger entry point launchers/gesture apps call — is
-documented below in Project Structure and will get an explicit `Intent`/Activity
-contract captured as part of the relevant implementation task in `tasks.md`.
+No machine-readable API contracts beyond that one file: this app has no API of its own
+to document a contract for otherwise (it is a client of an external, user-owned
+endpoint whose contract is the OpenAI chat-completions shape already fully specified
+in research.md R4 and data-model.md). The one true "interface" this app exposes to the
+*outside* world — the externally-invokable trigger entry point launchers/gesture apps
+call — is documented below in Project Structure and gets its explicit `Intent`/Activity
+contract captured in `contracts/trigger-intent-contract.md`, produced as a task in
+`tasks.md`.
 
 ### Source Code (repository root)
 

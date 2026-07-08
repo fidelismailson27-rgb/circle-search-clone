@@ -52,10 +52,11 @@ tests), `app/src/main/res/...`, `app/src/main/AndroidManifest.xml`.
   (`SYSTEM_ALERT_WINDOW`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PROJECTION`,
   `INTERNET`) — no components declared yet, those are added by the tasks that
   implement them
-- [ ] T006 [P] Create `app/src/main/res/xml/network_security_config.xml` restricting
+- [ ] T006 Create `app/src/main/res/xml/network_security_config.xml` restricting
   cleartext traffic to private IP ranges (`10.0.0.0/8`, `172.16.0.0/12`,
   `192.168.0.0/16`) and `localhost`, and reference it via
-  `android:networkSecurityConfig` in `app/src/main/AndroidManifest.xml`
+  `android:networkSecurityConfig` in `app/src/main/AndroidManifest.xml` (depends on
+  T005 — edits the manifest file T005 creates)
 - [ ] T007 [P] Create the `app/src/main/kotlin/com/circulesearch/app/{data,domain,ui,di}`
   package skeleton per plan.md's Project Structure (empty sub-packages:
   `data/network`, `data/capture`, `data/accessibility`, `data/settings`,
@@ -209,7 +210,8 @@ originating app losing state.
   prior search is still in progress (FR-018/FR-023) in
   `StartVisualSearchUseCase.kt`
 - [ ] T036 [P] [US1] Implement `ResultBottomSheet` Compose UI with explicit
-  loading (skeleton) / success / error states in
+  loading (skeleton) / success / error states, where the error state includes a
+  visible retry action (FR-024, constitution X) in
   `app/src/main/kotlin/com/circulesearch/app/ui/result/ResultBottomSheet.kt`
 - [ ] T037 [US1] Implement `ResultViewModel` (creates the `ConversationSession` for the
   first turn, cancels any in-flight request and releases memory on dismiss per
@@ -476,7 +478,7 @@ than one story.
 
 ### Parallel Opportunities
 
-- All Setup tasks marked `[P]` (T003, T004, T006, T007) can run in parallel once their
+- All Setup tasks marked `[P]` (T003, T004, T007) can run in parallel once their
   own listed dependency is satisfied
 - Foundational tasks marked `[P]` (T010, T011, T012, T013, T016, T017, T019, T020) can
   run in parallel within Phase 2
