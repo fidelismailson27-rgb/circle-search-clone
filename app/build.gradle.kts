@@ -11,12 +11,12 @@
 // release exists.
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.android.legacy.kapt)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
-    id("com.android.legacy-kapt")
 }
 
 android {
