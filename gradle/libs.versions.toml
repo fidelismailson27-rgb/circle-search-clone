@@ -34,7 +34,13 @@
 kotlin = "2.4.0"
 agp = "9.2.0"
 jdk = "17"
-compileSdk = "35"
+# compileSdk 37 (not 35): found via a real CI failure — Coil3 3.5.0 and other 2026-era
+# dependency releases were compiled against newer platform APIs (some require 36,
+# some 37) and CheckAarMetadata rejects consuming them against a lower compileSdk.
+# compileSdk is a build-time-only setting, independent of targetSdk/minSdk below —
+# raising it does NOT change runtime behavior or the constitution's fixed
+# targetSdk 35 requirement; AGP 9.2.0 supports up to API 37 (research.md/plan.md).
+compileSdk = "37"
 targetSdk = "35"
 minSdk = "26"
 
